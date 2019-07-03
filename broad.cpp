@@ -1,8 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "/scripts/code/dcheck.hpp"
-
-// #include <sdsl/bit_vectors.hpp>
+#include <sdsl/bit_vectors.hpp>
 
 using namespace std;
 // using namespace sdsl;
@@ -32,6 +31,17 @@ size_t naivsearch(const unsigned char*const arr, const size_t cLength, const uns
 	return -1ULL;
 }
 
+size_t naivsearch(const sdsl::int_vector<>& arr, const unsigned char pattern) {
+	std::cout << "NAIV" << std::endl;
+
+	for(size_t i = 0; i < arr.size(); ++i) {
+		if(arr[i] == pattern) {
+			return i;
+		}
+	}
+	return -1ULL;
+}
+
 
 constexpr uint64_t lowestbitmask(uint_fast8_t bitwidth) {
 	uint64_t ret = 0;
@@ -47,9 +57,6 @@ constexpr uint64_t highestbitmask(uint_fast8_t bitwidth) {
 	}
 	return ret;
 }
-// constexpr uint64_t lowestbitmaskarr  = 0b0000000100000001000000010000000100000001000000010000000100000001;
-// constexpr uint64_t highestbitmaskarr = 0b1000000010000000100000001000000010000000100000001000000010000000;
-
 constexpr uint64_t lowestbitmaskarr[]  = { 
 	0,
 	lowestbitmask(1),
@@ -74,12 +81,12 @@ constexpr uint64_t highestbitmaskarr[] = {
 };
 
 
-size_t broadsearch(const unsigned char*const arr, const size_t cLength, const unsigned char pattern) {
+size_t broadsearch(const uint64_t*const arr, const size_t cLength, const size_t cBitlength, const unsigned char pattern) {
 	std::cout << "BROADWORD" << std::endl;
 
-	const size_t bpattern = lowestbitmaskarr[8] * pattern;
+	const size_t bpattern = lowestbitmaskarr[cBitlength] * pattern;
 
-	for(size_t i = 0; i < (cLength+7)/8; ++i) {
+	for(size_t i = 0; i < (cLength+cBitlength-1)/cBitlength; ++i) {
 
 		const size_t barr = reinterpret_cast<const size_t*>(arr)[i];
 		const size_t chunk = barr ^ bpattern; // now search for the 0 byte in chunk
@@ -90,12 +97,12 @@ size_t broadsearch(const unsigned char*const arr, const size_t cLength, const un
 		// 	}
 		// }
 
-		const size_t test = ((chunk) - lowestbitmaskarr[8]) & (~chunk) & highestbitmaskarr[8];
+		const size_t test = ((chunk) - lowestbitmaskarr[cBitlength]) & (~chunk) & highestbitmaskarr[cBitlength];
 		// const size_t test = ((chunk) - 0x0101010101010101ULL) & (~chunk) & 0x8080808080808080ULL;
 		if(test != 0) {
 			std::cout << "Byte : " << i << " Pos " << most_significant_bit(test & (-test)) << std::endl;
-			std::cout << "Found: " << (i*8 + (most_significant_bit(test & (-test))-7)/8 ) << std::endl;
-			const size_t ret = (i*8 + (most_significant_bit(test & (-test))-7)/8 );
+			std::cout << "Found: " << (i*cBitlength + (most_significant_bit(test & (-test))+1-cBitlength)/cBitlength ) << std::endl;
+			const size_t ret = (i*cBitlength + (most_significant_bit(test & (-test))+1-cBitlength)/cBitlength );
 			return (ret < cLength) ? ret : -1ULL;
 		}
 
@@ -104,6 +111,31 @@ size_t broadsearch(const unsigned char*const arr, const size_t cLength, const un
 }
 
 int main(int argc , char *argv[]) {
+	while(1) {
+		constexpr size_t cBitlength = 7;
+		constexpr size_t cLength = 13;
+		sdsl::int_vector<> arr(cLength, 0, cBitlength);
+
+		for(size_t i = 0; i < cLength; ++i) {
+			arr[i] = rand() % (1ULL<<cBitlength);
+		}
+
+		for(size_t i = 0; i < cLength; ++i) {
+			std::cout << i << " -> " << ((size_t)arr[i]) << " " << std::endl;
+		}
+		for(size_t iRound = 0; iRound < cLength; ++iRound) {
+			const unsigned char pattern = arr[iRound]; //strtoul(argv[1],NULL,10);
+			std::cout << " == Pattern = " << ((size_t)pattern) << std::endl;
+			const size_t nret = naivsearch(arr, pattern);
+			const size_t bret = broadsearch(arr.data(), cLength, cBitlength, pattern);
+			DCHECK_EQ(nret, bret);
+			// for(size_t i = 0; i < nret.size(); ++i) {
+			// 	DCHECK_EQ(nret[i], bret[i]);
+			// }
+		}
+
+	}
+
 
 	while(1) {
 		constexpr size_t cLength = 13;
@@ -120,7 +152,7 @@ int main(int argc , char *argv[]) {
 			const unsigned char pattern = arr[iRound]; //strtoul(argv[1],NULL,10);
 			std::cout << " == Pattern = " << ((size_t)pattern) << std::endl;
 			const size_t nret = naivsearch(arr, cLength, pattern);
-			const size_t bret = broadsearch(arr, cLength, pattern);
+			const size_t bret = broadsearch((uint64_t*)arr, cLength, 8, pattern);
 			DCHECK_EQ(nret, bret);
 			// for(size_t i = 0; i < nret.size(); ++i) {
 			// 	DCHECK_EQ(nret[i], bret[i]);
