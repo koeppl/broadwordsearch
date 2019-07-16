@@ -191,16 +191,43 @@ constexpr uint64_t highestbitmaskarr[] = {
 };
 
 
+size_t broadsearch_quantized(const uint64_t*const arr, const size_t cLength, const size_t cBitlength, const unsigned char pattern) {
+    DCHECK_LE(cBitlength,63);
+    DCHECK_EQ(64 % cBitlength, 0); // 64 must be divisible by cBitlength
+    DCHECK_GT(cBitlength,0);
+    std::cout << "BROADWORD QUANT" << std::endl;
+
+	const size_t bpattern = lowestbitmaskarr[cBitlength] * pattern;
+
+	const uint8_t wordpackedels = (sizeof(uint64_t)*8/cBitlength); // number of elements fitting into 64 bits
+	for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
+
+	    const size_t barr = reinterpret_cast<const uint64_t*>(arr)[i];
+	    const size_t chunk = barr ^ bpattern; // now search for the 0 byte in chunk
+	
+	    const size_t test = ((chunk) - lowestbitmaskarr[cBitlength]) & (~chunk) & highestbitmaskarr[cBitlength];
+	    if(test != 0) {
+		const size_t ret = (i*wordpackedels + (most_significant_bit(test & (-test))+1-cBitlength)/cBitlength );
+
+		std::cout << "Byte : " << i << " Pos " << most_significant_bit(test & (-test)) << std::endl;
+		std::cout << "Found at : " << ret << std::endl;
+
+		return (ret < cLength) ? ret : -1ULL;
+	    }
+
+	}
+	return -1ULL;
+}
 
 size_t broadsearch(const uint64_t* arr, const size_t cLength, const size_t cBitlength, const unsigned char pattern) {
     DCHECK_LE(cBitlength,63);
     DCHECK_GT(cBitlength,0);
-	std::cout << "BROADWORD" << std::endl;
+    std::cout << "BROADWORD" << std::endl;
 
 	const size_t bpattern = lowestbitmaskarr[cBitlength] * pattern;
 
 	uint8_t offset = 0;
-	const uint8_t wordpackedels = (64/cBitlength); // number of elements fitting into 64 bits
+	const uint8_t wordpackedels = (sizeof(uint64_t)*8/cBitlength); // number of elements fitting into 64 bits
 	for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
 
 	    const size_t barr = sdsl::bits::read_int_and_move(arr, offset, wordpackedels*cBitlength);
@@ -248,6 +275,11 @@ int main(int argc , char *argv[]) {
 		    const size_t nret = naivsearch(arr, pattern);
 		    const size_t bret = broadsearch(arr.data(), cLength, cBitlength, pattern);
 		    DCHECK_EQ(nret, bret);
+		    if(64 % cBitlength == 0) {
+		    // if(cBitlength == 48) {
+			const size_t bqret = broadsearch_quantized(arr.data(), cLength, cBitlength, pattern);
+			DCHECK_EQ(nret, bqret);
+		    }
 		    // for(size_t i = 0; i < nret.size(); ++i) {
 		    // 	DCHECK_EQ(nret[i], bret[i]);
 		    // }
@@ -283,3 +315,20 @@ int main(int argc , char *argv[]) {
 
 	return 0;
 }
+
+
+
+/*
+ * __m256i _mm256_sub_epi64 (__m256i a, __m256i b)
+ * a - b
+ * 
+ * __m256i _mm256_xor_si256 (__m256i a, __m256i b)
+ * a ^ b  (becomes ^a when b = 111111)
+ *
+ * __m256i _mm256_andnot_si256 (__m256i a, __m256i b)
+ * (^a) & b
+ *
+ * __m256i _mm256_and_si256 (__m256i a, __m256i b)
+ * a & b
+ *
+ */
