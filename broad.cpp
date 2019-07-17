@@ -190,6 +190,130 @@ constexpr uint64_t highestbitmaskarr[] = {
 	highestbitmask(63)
 };
 
+size_t broadsearch_nonquantized(const uint64_t*const arr, const size_t cLength, const size_t cBitlength, const unsigned char pattern, size_t answer) {
+    DCHECK_LE(cBitlength,63);
+    DCHECK_GT(cBitlength,0);
+    std::cout << "BROADWORD NONQUANT" << std::endl;
+
+
+    const uint8_t wordpackedels = (sizeof(uint64_t)*8/cBitlength); // number of elements fitting into 64 bits
+    uint8_t remainder = sizeof(uint64_t)*8 - wordpackedels*cBitlength; // number of bits of the element wrapping around a 64 bit block boundary, left hand side / highest bits of the current block `barr`
+    uint8_t unchecked = 0; // unchecked: number of bits of the previous remainder that need to be checked. These are the first bits of the current block `barr`
+    for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
+
+	const uint64_t bpattern = (lowestbitmaskarr[cBitlength] << unchecked) * pattern;
+	const uint64_t barr = reinterpret_cast<const uint64_t*>(arr)[i];
+	const uint64_t chunk = barr ^ bpattern; // now search for the 0 byte in chunk
+	const uint64_t low = (lowestbitmaskarr[cBitlength] << unchecked); 
+	uint64_t high = (highestbitmaskarr[cBitlength] << unchecked);
+
+	const uint64_t test = ((chunk) - low) & (~chunk) & high;
+	if(test != 0) {
+	    const uint8_t matchposition = most_significant_bit(test & (-test));
+	    size_t ret = ((sizeof(uint64_t)*8*i/cBitlength) + (matchposition +1-cBitlength-unchecked)/cBitlength );
+	    if(unchecked > 0) ++ret;
+
+	    if(ret < cLength) {
+		std::cout << "Byte : " << i << " Pos " << most_significant_bit(test & (-test)) << std::endl;
+		std::cout << "Found at : " << ret << std::endl;
+
+		DCHECK_EQ(ret, answer);
+		return ret;
+	    }
+	}
+
+	DCHECK_LT(remainder, cBitlength);
+	unchecked = cBitlength-remainder;
+	if(unchecked == cBitlength) { unchecked = 0;}
+	const uint8_t remainingbits = sizeof(uint64_t)*8 - unchecked;
+	remainder = remainingbits - (remainingbits/cBitlength)*cBitlength;
+    }
+    uint8_t rem = sizeof(uint64_t)*8 - wordpackedels*cBitlength;
+    for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
+	const uint64_t el = sdsl::bits::read_int(arr+i, 64-rem, cBitlength);
+	rem = (64 - (cBitlength - rem)) % cBitlength;
+	if(el == pattern) {
+	    size_t ret = (sizeof(uint64_t)*8*(i+1)/cBitlength);
+	    if(ret < cLength) {
+		DCHECK_EQ(ret, answer);
+		return ret;
+	    } else {
+		DCHECK_EQ(-1ULL, answer);
+		return -1ULL;
+	    }
+	    //return (ret < cLength) ? ret : -1ULL;
+	}
+
+    }
+    DCHECK_EQ(-1ULL, answer);
+    return -1ULL;
+}
+
+
+// size_t broadsearch_nonquantized(const uint64_t*const arr, const size_t cLength, const size_t cBitlength, const unsigned char pattern, size_t answer) {
+//     DCHECK_LE(cBitlength,63);
+//     DCHECK_GT(cBitlength,0);
+//     std::cout << "BROADWORD NONQUANT" << std::endl;
+//
+//
+//     const uint8_t wordpackedels = (sizeof(uint64_t)*8/cBitlength); // number of elements fitting into 64 bits
+//     uint8_t remainder = sizeof(uint64_t)*8 - wordpackedels*cBitlength; // number of bits of the element wrapping around a 64 bit block boundary, left hand side / highest bits of the current block `barr`
+//     uint8_t unchecked = 0; // unchecked: number of bits of the previous remainder that need to be checked. These are the first bits of the current block `barr`
+//     bool remainder_matches = false;
+//     for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
+//
+// 	const uint64_t bpattern = ((lowestbitmaskarr[cBitlength] << unchecked) * pattern) | (pattern >> (cBitlength-unchecked));
+// 	const uint64_t barr = reinterpret_cast<const uint64_t*>(arr)[i];
+// 	const uint64_t chunk = barr ^ bpattern; // now search for the 0 byte in chunk
+// 	const uint64_t low = (lowestbitmaskarr[cBitlength] << unchecked) | 1ULL;
+// 	uint64_t high = (highestbitmaskarr[cBitlength] << unchecked) | (1ULL<<63);
+// 	if(unchecked > 0) high |= (1ULL<<(unchecked-1));
+//
+//
+// 	uint64_t test = ((chunk) - low) & (~chunk) & high;
+// 	if(test != 0) {
+// 	    uint8_t matchposition = most_significant_bit(test & (-test));
+// 	    if(matchposition >= wordpackedels*cBitlength) { // matching the remainder
+// 		remainder_matches = true;
+// 	    }
+// 	    else {
+// 		if(matchposition < unchecked) {
+// 		    if(remainder_matches == true) {
+// 			const size_t ret = (sizeof(uint64_t)*8*i/cBitlength);
+// 			DCHECK_EQ(ret, answer);
+// 			return (ret < cLength) ? ret : -1ULL;
+// 		    }
+// 		} 
+// 	    }
+// 	} else {
+// 		remainder_matches = false;
+// 	}
+// 	test &= ((-1ULL)<<unchecked);
+// 	if(test != 0) {
+// 	    uint8_t matchposition = most_significant_bit(test & (-test));
+// 	    if(matchposition < sizeof(uint64_t)*8 + unchecked - remainder) { // matching not the remainder
+// 		remainder_matches = false;
+//
+// 		size_t ret = ((sizeof(uint64_t)*8*i/cBitlength) + (most_significant_bit(test & (-test))+1-cBitlength-unchecked)/cBitlength );
+// 		if(unchecked > 0) ++ret;
+//
+// 		std::cout << "Byte : " << i << " Pos " << most_significant_bit(test & (-test)) << std::endl;
+// 		std::cout << "Found at : " << ret << std::endl;
+//
+// 		DCHECK_EQ(ret, answer);
+// 		return (ret < cLength) ? ret : -1ULL;
+// 	    }
+// 	}
+//
+// 	unchecked = cBitlength-remainder;
+// 	const uint8_t remainingbits = sizeof(uint64_t)*8 - unchecked;
+// 	remainder = remainingbits - (remainingbits/cBitlength)*cBitlength;
+//
+//     }
+//     DCHECK_EQ(-1ULL, answer);
+//     return -1ULL;
+// }
+
 
 size_t broadsearch_quantized(const uint64_t*const arr, const size_t cLength, const size_t cBitlength, const unsigned char pattern) {
     DCHECK_LE(cBitlength,63);
@@ -197,26 +321,26 @@ size_t broadsearch_quantized(const uint64_t*const arr, const size_t cLength, con
     DCHECK_GT(cBitlength,0);
     std::cout << "BROADWORD QUANT" << std::endl;
 
-	const size_t bpattern = lowestbitmaskarr[cBitlength] * pattern;
+    const size_t bpattern = lowestbitmaskarr[cBitlength] * pattern;
 
-	const uint8_t wordpackedels = (sizeof(uint64_t)*8/cBitlength); // number of elements fitting into 64 bits
-	for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
+    const uint8_t wordpackedels = (sizeof(uint64_t)*8/cBitlength); // number of elements fitting into 64 bits
+    for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
 
-	    const size_t barr = reinterpret_cast<const uint64_t*>(arr)[i];
-	    const size_t chunk = barr ^ bpattern; // now search for the 0 byte in chunk
-	
-	    const size_t test = ((chunk) - lowestbitmaskarr[cBitlength]) & (~chunk) & highestbitmaskarr[cBitlength];
-	    if(test != 0) {
-		const size_t ret = (i*wordpackedels + (most_significant_bit(test & (-test))+1-cBitlength)/cBitlength );
+	const size_t barr = reinterpret_cast<const uint64_t*>(arr)[i];
+	const size_t chunk = barr ^ bpattern; // now search for the 0 byte in chunk
 
-		std::cout << "Byte : " << i << " Pos " << most_significant_bit(test & (-test)) << std::endl;
-		std::cout << "Found at : " << ret << std::endl;
+	const size_t test = ((chunk) - lowestbitmaskarr[cBitlength]) & (~chunk) & highestbitmaskarr[cBitlength];
+	if(test != 0) {
+	    const size_t ret = (i*wordpackedels + (most_significant_bit(test & (-test))+1-cBitlength)/cBitlength );
 
-		return (ret < cLength) ? ret : -1ULL;
-	    }
+	    std::cout << "Byte : " << i << " Pos " << most_significant_bit(test & (-test)) << std::endl;
+	    std::cout << "Found at : " << ret << std::endl;
 
+	    return (ret < cLength) ? ret : -1ULL;
 	}
-	return -1ULL;
+
+    }
+    return -1ULL;
 }
 
 size_t broadsearch(const uint64_t* arr, const size_t cLength, const size_t cBitlength, const unsigned char pattern) {
@@ -257,6 +381,46 @@ size_t broadsearch(const uint64_t* arr, const size_t cLength, const size_t cBitl
 }
 
 int main(int argc , char *argv[]) {
+
+    while(1) 
+    {
+	for(size_t cBitlength = 1; cBitlength < 63; ++cBitlength) 
+	{
+    for(size_t cLength = 2; cLength < std::min(200ULL, 1ULL<<cBitlength); ++cLength) 
+    {
+    // size_t cLength = 30;
+    // size_t cBitlength = 5;
+    sdsl::int_vector<> arr(cLength, 0, cBitlength);
+
+    for(size_t i = 0; i < cLength; ++i) {
+	while(1) {
+	    arr[i] = rand() % (1ULL<<cBitlength);
+	    bool duplicate = false;
+	    for(size_t j = 0; j < i; ++j) {
+		if(arr[i] == arr[j]) {duplicate = true;}
+	    }
+	    if(!duplicate) break;
+	}
+    }
+
+    for(size_t i = 0; i < cLength; ++i) {
+	std::cout << i << " -> " << ((size_t)arr[i]) << " " << std::endl;
+    }
+    for(size_t iRound = 0; iRound < cLength; ++iRound) 
+    {
+    //    size_t iRound = 12;
+	const unsigned char pattern = arr[iRound]; //strtoul(argv[1],NULL,10);
+	std::cout << " == Pattern = " << ((size_t)pattern) << std::endl;
+	const size_t nret = naivsearch(arr, pattern);
+	const size_t bret = broadsearch_nonquantized(arr.data(), cLength, cBitlength, pattern, nret);
+	DCHECK_EQ(nret, bret);
+    }
+}
+}
+}
+
+
+
     while(1) {
 	for(size_t cBitlength = 1; cBitlength < 63; ++cBitlength) {
 	    for(size_t cLength = 2; cLength < 20; ++cLength) {
