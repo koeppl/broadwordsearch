@@ -1,32 +1,22 @@
+/**
+ * We follow Knuth's book "Bitwise Tricks and Techniques", Page 19
+ * lowestbitmask and highestbitmask are there defined as l and h
+ * The difference is that our bitmasks are not byte-aligned, but `bitwidth` aligned.
+ */
+
 #include <iostream>
 #include <cstdlib>
-#include "/scripts/code/dcheck.hpp"
 #include <sdsl/bit_vectors.hpp>
 #include <glog/logging.h>
-#include <gtest/gtest.h>
-#include <celero/Celero.h>
 
 using namespace std;
 using namespace google;
-// using namespace sdsl;
-
 
 //! returns the most significant bit
 constexpr int most_significant_bit(const uint64_t& x) {
     return x == 0 ? -1 : (sizeof(uint64_t)*8-1) - __builtin_clzll(x);
 }
 
-
-size_t naivsearch(const unsigned char*const arr, const size_t cLength, const unsigned char pattern) {
-	DVLOG(3) << "NAIV";
-
-	for(size_t i = 0; i < cLength; ++i) {
-		if(arr[i] == pattern) {
-			return i;
-		}
-	}
-	return -1ULL;
-}
 
 size_t naivsearch(const sdsl::int_vector<>& arr, const uint64_t pattern) {
 	DVLOG(3) << "NAIV";
@@ -39,11 +29,6 @@ size_t naivsearch(const sdsl::int_vector<>& arr, const uint64_t pattern) {
 	return -1ULL;
 }
 
-/**
- * We follow Knuth's book "Bitwise Tricks and Techniques", Page 19
- * lowestbitmask and highestbitmask are there defined as l and h
- * The difference is that our bitmasks are not byte-aligned, but `bitwidth` aligned.
- */
 
 
 /**
@@ -290,6 +275,12 @@ size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const u
  * and matches the read bit chunk with the pattern broadcasted to an integer of the same bit size.
  * This broadcastet pattern is used for the entire match. However, reading the bit chunks of the array can be slow if the pattern bit width
  * is not a multiple of eight (then the access is not byte-aligned).
+ *
+ * The search works as follows:
+ * - create a broadword pattern by bpattern = pattern * l
+ * - compute XOR of the read bit chunk with bpattern. If we look at a chunk of length `cBitlength` that is zeroed, then there is a match. Let x be the result of the XOR operation
+ * - to obtain the match position, we write test <- h & (x-l) & (^x)  (this is Equation 90 in Knuth's book)
+ * - now t contains a 1 where the match is, otherwise 0. It is left to take the most significant bit, and map it to a position.
  */
 size_t broadsearch(const uint64_t* arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
    DCHECK(pattern == 0 || most_significant_bit(pattern) <= cBitlength);
@@ -368,168 +359,4 @@ class ArrayInstance {
     const size_t m_length;
     const uint8_t m_bitlength;
 };
-
-template<int m_bitlength>
-class ArrayFixture : public celero::TestFixture
-{
-public:
-    ArrayFixture()
-      : m_instance_length(std::min<size_t>(9, m_bitlength-1))
-      , m_problemspace(m_instance_length,0)
-      , m_instances( new ArrayInstance*[m_instance_length])
-    
-    {
-        for(size_t i = 0; i < m_instance_length; i++)
-        {
-	   const size_t length = 2ULL<<i; 
-	   m_problemspace[i] = {static_cast<int64_t>(i)};
-	   m_instances[i] = new ArrayInstance(length, m_bitlength);
-        }
-    }
-
-
-   virtual void setUp(const celero::TestFixture::ExperimentValue& experimentValue) override {
-      m_current_instance = experimentValue.Value;
-      DCHECK_GE(m_instance_length, 0);
-      DCHECK_LT(m_current_instance, static_cast<uint64_t>(m_instance_length));
-   }
-   virtual std::vector<celero::TestFixture::ExperimentValue> getExperimentValues() const override
-   {
-      return m_problemspace;
-   }
-   size_t instance_length() const {
-      return m_instance_length;
-   }
-
-   const ArrayInstance& instance() const {
-      return *m_instances[m_current_instance];
-   }
-
-   ~ArrayFixture() {
-      for(size_t i = 0; i < m_instance_length; ++i) {
-	delete m_instances[i];
-      }
-      delete [] m_instances;
-   }
-
-private:
-   const size_t m_instance_length;
-
-   std::vector<celero::TestFixture::ExperimentValue> m_problemspace;
-   ArrayInstance**const m_instances = nullptr;
-
-   size_t m_current_instance = 0;
-};
-
-
-TEST(BroadWord, Match) { 
-   ArrayFixture<13> fixture;
-   for(size_t i = 0; i < fixture.instance_length(); ++i) {
-      fixture.setUp(i);
-      const sdsl::int_vector<>& arr = fixture.instance().array();  
-      for(size_t iRound = 0; iRound < arr.size(); ++iRound)   
-      {  
-	 const uint64_t pattern = arr[iRound];   
-	 const size_t nret = naivsearch(arr, pattern);  
-	 ASSERT_EQ(iRound, nret) << "Naive failed";  
-	 const size_t bret = broadsearch(arr.data(), arr.size(), fixture.instance().bitlength(), pattern);  
-	 ASSERT_EQ(iRound, bret) << "Broad failed";  
-	 const size_t bqret = broadsearch_shift(arr.data(), arr.size(), fixture.instance().bitlength(), pattern, iRound);  
-	 ASSERT_EQ(iRound, bqret) << "Shift failed";  
-      }  
-   }
-}
-
-TEST(BroadWord, LongTest) { 
-   for(size_t reps = 0; reps < 5; ++reps) {
-      for(size_t cBitlength = 1; cBitlength < 63; ++cBitlength) {
-	 for(size_t cLength = 2; cLength < std::min(100ULL, 1ULL<<cBitlength); ++cLength) {
-	    sdsl::int_vector<> arr(cLength, 0, cBitlength);
-	    for(size_t i = 0; i < cLength; ++i) {
-	       while(1) {
-		  arr[i] = rand() % (1ULL<<cBitlength);
-		  bool duplicate = false;
-		  for(size_t j = 0; j < i; ++j) {
-		     if(arr[i] == arr[j]) {duplicate = true;}
-		  }
-		  if(!duplicate) break;
-	       }
-	    }
-	    for(size_t i = 0; i < cLength; ++i) {
-	       DVLOG(3) << i << " -> " << ((size_t)arr[i]) << " ";
-	    }
-	    for(size_t iRound = 0; iRound < cLength; ++iRound) {
-	       const uint64_t pattern = arr[iRound]; 
-	       DVLOG(3) << " == Pattern = " << ((size_t)pattern);
-	       const size_t nret = naivsearch(arr, pattern);
-	       ASSERT_EQ(nret, iRound);
-	       const size_t bret = broadsearch(arr.data(), cLength, cBitlength, pattern);
-	       ASSERT_EQ(iRound, bret);
-	       const size_t bqret = broadsearch_shift(arr.data(), cLength, cBitlength, pattern, nret);
-	       ASSERT_EQ(iRound, bqret);
-	    }
-	    for(size_t iRound = 0; iRound < cLength; ++iRound) {
-		  const uint64_t pattern = rand() % (1ULL<<cBitlength);
-		  DVLOG(3) << " == Pattern = " << ((size_t)pattern);
-		  const size_t nret = naivsearch(arr, pattern);
-		  const size_t bret = broadsearch(arr.data(), cLength, cBitlength, pattern);
-		  ASSERT_EQ(nret, bret);
-		  const size_t bqret = broadsearch_shift(arr.data(), cLength, cBitlength, pattern, nret);
-		  ASSERT_EQ(nret, bqret);
-	    }
-	 }
-      }
-   }
-}
-
-
-
-#define GEN_BENCHMARK(BIT)  \
-BASELINE_F(Bit_##BIT, Naiv, ArrayFixture<BIT>, 30, 50) {   \
-    const sdsl::int_vector<>& arr = this->instance().array();   \
-    for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
-    {   \
-	const uint64_t pattern = arr[iRound];    \
- 	const size_t nret = naivsearch(arr, pattern);   \
-	CHECK_EQ(iRound, nret) << "Naive failed";   \
-    }   \
-}   \
-BENCHMARK_F(Bit_##BIT, Shift, ArrayFixture<BIT>, 30, 50) {   \
-    const sdsl::int_vector<>& arr = this->instance().array();   \
-    for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
-    {   \
-	const uint64_t pattern = arr[iRound];    \
-	const size_t bret = broadsearch_shift(arr.data(), arr.size(), this->instance().bitlength(), pattern, iRound);   \
-	CHECK_EQ(iRound, bret) << "Shift failed";   \
-    }   \
-}   \
-BENCHMARK_F(Bit_##BIT, Broad, ArrayFixture<BIT>, 30, 50) {   \
-    const sdsl::int_vector<>& arr = this->instance().array();   \
-    for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
-    {   \
-	const uint64_t pattern = arr[iRound];    \
-	const size_t bret = broadsearch(arr.data(), arr.size(), this->instance().bitlength(), pattern);   \
-	CHECK_EQ(iRound, bret) << "Broad failed";   \
-    }   \
-}   \
-
-
-GEN_BENCHMARK(2)
-GEN_BENCHMARK(3)
-GEN_BENCHMARK(4)
-GEN_BENCHMARK(7)
-GEN_BENCHMARK(8)
-
-GEN_BENCHMARK(13)
-GEN_BENCHMARK(16)
-GEN_BENCHMARK(31)
-GEN_BENCHMARK(32)
-
-
-// CELERO_MAIN
-
-int main(int argc, char **argv) {
-     ::testing::InitGoogleTest(&argc, argv);
-       return RUN_ALL_TESTS();
-}
 
