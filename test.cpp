@@ -4,7 +4,7 @@
 TEST(BroadWord, Match) { 
    ArrayInstance instance(200,13);
    for(size_t i = 0; i < instance.length(); ++i) {
-      const sdsl::int_vector<>& arr = instance.array();  
+      const tdc::IntVector<tdc::dynamic_t>& arr = instance.array();  
       for(size_t iRound = 0; iRound < arr.size(); ++iRound)   
       {  
 	 const uint64_t pattern = arr[iRound];   
@@ -22,7 +22,7 @@ TEST(BroadWord, LongTest) {
    for(size_t reps = 0; reps < 5; ++reps) {
       for(size_t cBitlength = 1; cBitlength < 63; ++cBitlength) {
 	 for(size_t cLength = 2; cLength < std::min(100ULL, 1ULL<<cBitlength); ++cLength) {
-	    sdsl::int_vector<> arr(cLength, 0, cBitlength);
+	    tdc::IntVector<tdc::dynamic_t> arr(cLength, 0, cBitlength);
 	    for(size_t i = 0; i < cLength; ++i) {
 	       while(1) {
 		  arr[i] = rand() % (1ULL<<cBitlength);

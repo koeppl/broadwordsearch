@@ -61,7 +61,7 @@ private:
 
 #define GEN_BENCHMARK(BIT)  \
 BASELINE_F(Bit_##BIT, Naiv, ArrayFixture<BIT>, 30, 50) {   \
-    const sdsl::int_vector<>& arr = this->instance().array();   \
+    const tdc::IntVector<tdc::dynamic_t>& arr = this->instance().array();   \
     for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
     {   \
 	const uint64_t pattern = arr[iRound];    \
@@ -70,7 +70,7 @@ BASELINE_F(Bit_##BIT, Naiv, ArrayFixture<BIT>, 30, 50) {   \
     }   \
 }   \
 BENCHMARK_F(Bit_##BIT, Shift, ArrayFixture<BIT>, 30, 50) {   \
-    const sdsl::int_vector<>& arr = this->instance().array();   \
+    const tdc::IntVector<tdc::dynamic_t>& arr = this->instance().array();   \
     for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
     {   \
 	const uint64_t pattern = arr[iRound];    \
@@ -79,7 +79,7 @@ BENCHMARK_F(Bit_##BIT, Shift, ArrayFixture<BIT>, 30, 50) {   \
     }   \
 }   \
 BENCHMARK_F(Bit_##BIT, Broad, ArrayFixture<BIT>, 30, 50) {   \
-    const sdsl::int_vector<>& arr = this->instance().array();   \
+    const tdc::IntVector<tdc::dynamic_t>& arr = this->instance().array();   \
     for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
     {   \
 	const uint64_t pattern = arr[iRound];    \

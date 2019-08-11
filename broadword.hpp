@@ -6,7 +6,9 @@
 
 #include <iostream>
 #include <cstdlib>
-#include <sdsl/bit_vectors.hpp>
+// #include <sdsl/bit_vectors.hpp>
+#include <tudocomp/ds/IntVector.hpp>
+#include <tudocomp/util/bits.hpp>
 #include <glog/logging.h>
 
 using namespace std;
@@ -18,7 +20,7 @@ constexpr int most_significant_bit(const uint64_t& x) {
 }
 
 
-size_t naivsearch(const sdsl::int_vector<>& arr, const uint64_t pattern) {
+size_t naivsearch(const tdc::IntVector<tdc::dynamic_t>& arr, const uint64_t pattern) {
 	DVLOG(3) << "NAIV";
 
 	for(size_t i = 0; i < arr.size(); ++i) {
@@ -251,7 +253,7 @@ size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const u
     }
     uint8_t rem = sizeof(uint64_t)*8 - wordpackedels*cBitlength;
     for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
-	const uint64_t el = sdsl::bits::read_int(arr+i, 64-rem, cBitlength);
+	const uint64_t el = tdc::tdc_sdsl::bits::read_int(arr+i, 64-rem, cBitlength);
 	rem = (64 - (cBitlength - rem)) % cBitlength;
 	if(el == pattern) {
 	    size_t ret = (sizeof(uint64_t)*8*(i+1)/cBitlength);
@@ -294,7 +296,7 @@ size_t broadsearch(const uint64_t* arr, const size_t cLength, const uint8_t cBit
 	const uint8_t wordpackedels = (sizeof(uint64_t)*8/cBitlength); // number of elements fitting into 64 bits
 	for(size_t i = 0; i < (cLength+wordpackedels-1)/wordpackedels; ++i) {
 
-	    const size_t barr = sdsl::bits::read_int_and_move(arr, offset, wordpackedels*cBitlength);
+	    const size_t barr = tdc::tdc_sdsl::bits::read_int_and_move(arr, offset, wordpackedels*cBitlength);
 
 	    // const size_t barr = reinterpret_cast<const size_t*>(arr)[i];
 	    const size_t chunk = barr ^ bpattern; // now search for the 0 byte in chunk
@@ -329,7 +331,7 @@ class ArrayInstance {
    ArrayInstance(size_t length, uint8_t bitlength) 
       : m_length(std::min<size_t>(length, 1ULL<<bitlength)), m_bitlength(bitlength)
    { 
-	m_arr = sdsl::int_vector<>(m_length, 0, m_bitlength);
+	m_arr = tdc::IntVector<tdc::dynamic_t>(m_length, 0, m_bitlength);
 
 	for(size_t i = 0; i < m_length; ++i) {
 	    while(1) {
@@ -350,12 +352,12 @@ class ArrayInstance {
 	return m_bitlength;
     }
 	
-    const sdsl::int_vector<>& array() const {
+    const tdc::IntVector<tdc::dynamic_t>& array() const {
 	return m_arr;
     }
 
    private:
-    sdsl::int_vector<> m_arr;
+    tdc::IntVector<tdc::dynamic_t> m_arr;
     const size_t m_length;
     const uint8_t m_bitlength;
 };
