@@ -1,5 +1,7 @@
-#include "broadword.hpp"
+#include "broadwordsearch.hpp"
 #include <celero/Celero.h>
+
+using namespace broadwordsearch;
 
 /**
  * Fixture for Celero

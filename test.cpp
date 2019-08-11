@@ -1,5 +1,7 @@
-#include "broadword.hpp"
+#include "broadwordsearch.hpp"
 #include <gtest/gtest.h>
+
+using namespace broadwordsearch;
 
 TEST(BroadWord, Match) { 
    ArrayInstance instance(200,13);

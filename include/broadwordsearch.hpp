@@ -11,6 +11,8 @@
 #include <tudocomp/util/bits.hpp>
 #include <glog/logging.h>
 
+namespace broadwordsearch {
+
 using namespace std;
 using namespace google;
 
@@ -362,3 +364,4 @@ class ArrayInstance {
     const uint8_t m_bitlength;
 };
 
+}//ns
