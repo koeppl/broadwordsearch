@@ -10,11 +10,14 @@ TEST(BroadWord, Match) {
       for(size_t iRound = 0; iRound < arr.size(); ++iRound)   
       {  
 	 const uint64_t pattern = arr[iRound];   
-	 const size_t nret = naivsearch(arr, pattern);  
+
+	 const size_t aret = api_search(arr, pattern);  
+	 ASSERT_EQ(iRound, aret) << "API failed";  
+	 const size_t nret = naivsearch(arr.data(), arr.size(), instance.bitlength(), pattern);
 	 ASSERT_EQ(iRound, nret) << "Naive failed";  
 	 const size_t bret = broadsearch(arr.data(), arr.size(), instance.bitlength(), pattern);  
 	 ASSERT_EQ(iRound, bret) << "Broad failed";  
-	 const size_t bqret = broadsearch_shift(arr.data(), arr.size(), instance.bitlength(), pattern, iRound);  
+	 const size_t bqret = broadsearch_shift(arr.data(), arr.size(), instance.bitlength(), pattern);  
 	 ASSERT_EQ(iRound, bqret) << "Shift failed";  
       }  
    }
@@ -41,20 +44,24 @@ TEST(BroadWord, LongTest) {
 	    for(size_t iRound = 0; iRound < cLength; ++iRound) {
 	       const uint64_t pattern = arr[iRound]; 
 	       DVLOG(3) << " == Pattern = " << ((size_t)pattern);
-	       const size_t nret = naivsearch(arr, pattern);
+	       const size_t aret = api_search(arr, pattern);
+	       ASSERT_EQ(aret, iRound);
+	       const size_t nret = naivsearch(arr.data(), cLength, cBitlength, pattern);
 	       ASSERT_EQ(nret, iRound);
 	       const size_t bret = broadsearch(arr.data(), cLength, cBitlength, pattern);
 	       ASSERT_EQ(iRound, bret);
-	       const size_t bqret = broadsearch_shift(arr.data(), cLength, cBitlength, pattern, nret);
+	       const size_t bqret = broadsearch_shift(arr.data(), cLength, cBitlength, pattern);
 	       ASSERT_EQ(iRound, bqret);
 	    }
 	    for(size_t iRound = 0; iRound < cLength; ++iRound) {
 		  const uint64_t pattern = rand() % (1ULL<<cBitlength);
 		  DVLOG(3) << " == Pattern = " << ((size_t)pattern);
-		  const size_t nret = naivsearch(arr, pattern);
+		  const size_t aret = api_search(arr, pattern);
+		  const size_t nret = naivsearch(arr.data(), cLength, cBitlength, pattern);
+		  ASSERT_EQ(nret, aret);
 		  const size_t bret = broadsearch(arr.data(), cLength, cBitlength, pattern);
 		  ASSERT_EQ(nret, bret);
-		  const size_t bqret = broadsearch_shift(arr.data(), cLength, cBitlength, pattern, nret);
+		  const size_t bqret = broadsearch_shift(arr.data(), cLength, cBitlength, pattern);
 		  ASSERT_EQ(nret, bqret);
 	    }
 	 }

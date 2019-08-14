@@ -22,15 +22,34 @@ constexpr int most_significant_bit(const uint64_t& x) {
 }
 
 
-size_t naivsearch(const tdc::IntVector<tdc::dynamic_t>& arr, const uint64_t pattern) {
-	DVLOG(3) << "NAIV";
-
+/**
+ * Use the API of tdc::IntVector to search
+ */ 
+size_t api_search(const tdc::IntVector<tdc::dynamic_t>& arr, const uint64_t pattern) {
+	DVLOG(3) << "API";
 	for(size_t i = 0; i < arr.size(); ++i) {
 		if(arr[i] == pattern) {
 			return i;
 		}
 	}
 	return -1ULL;
+}
+
+size_t naivsearch(const uint64_t* arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
+	DVLOG(3) << "NAIV";
+
+       uint8_t offset = 0;
+
+       for(size_t i = 0; i < cLength; ++i) { // needed?
+            const uint64_t read_key = tdc::tdc_sdsl::bits_impl<>::read_int_and_move(arr, offset, cBitlength);
+	    DCHECK_EQ(read_key, arr[i]);
+            if(read_key == pattern) {
+                return i;
+            }
+        }
+       return -1ULL;
+
+
 }
 
 
@@ -214,7 +233,7 @@ constexpr uint64_t highestbitmaskarr[] = {
  * __m256i _mm256_and_si256 (__m256i a, __m256i b) for a & b
  *
  */
-size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern, size_t answer) {
+size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
    DCHECK(pattern == 0 || most_significant_bit(pattern) <= cBitlength);
     DCHECK_LE(cBitlength,63);
     DCHECK_GT(cBitlength,0);
@@ -242,7 +261,7 @@ size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const u
 		DVLOG(3) << "Byte : " << i << " Pos " << most_significant_bit(test & (-test));
 		DVLOG(3) << "Found at : " << ret;
 
-		DCHECK_EQ(ret, answer);
+		// DCHECK_EQ(ret, answer);
 		return ret;
 	    }
 	}
@@ -260,17 +279,17 @@ size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const u
 	if(el == pattern) {
 	    size_t ret = (sizeof(uint64_t)*8*(i+1)/cBitlength);
 	    if(ret < cLength) {
-		DCHECK_EQ(ret, answer);
+		// DCHECK_EQ(ret, answer);
 		return ret;
 	    } else {
-		DCHECK_EQ(-1ULL, answer);
+		// DCHECK_EQ(-1ULL, answer);
 		return -1ULL;
 	    }
 	    //return (ret < cLength) ? ret : -1ULL;
 	}
 
     }
-    DCHECK_EQ(-1ULL, answer);
+    // DCHECK_EQ(-1ULL, answer);
     return -1ULL;
 }
 

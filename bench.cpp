@@ -60,27 +60,36 @@ private:
 
 
 
+// BASELINE_F(Bit_##BIT, base, ArrayFixture<BIT>, 30, 50) {   \
+//     const tdc::IntVector<tdc::dynamic_t>& arr = this->instance().array();   \
+//     for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
+//     {   \
+// 	const uint64_t pattern = arr[iRound];    \
+//  	const size_t aret = api_search(arr, pattern);   \
+// 	CHECK_EQ(iRound, aret) << "API failed";   \
+//     }   \
+// }   \
 
 #define GEN_BENCHMARK(BIT)  \
-BASELINE_F(Bit_##BIT, Naiv, ArrayFixture<BIT>, 30, 50) {   \
+BASELINE_F(Bit_##BIT, naive, ArrayFixture<BIT>, 30, 50) {   \
     const tdc::IntVector<tdc::dynamic_t>& arr = this->instance().array();   \
     for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
     {   \
 	const uint64_t pattern = arr[iRound];    \
- 	const size_t nret = naivsearch(arr, pattern);   \
+	const size_t nret = naivsearch(arr.data(), arr.size(), this->instance().bitlength(), pattern);   \
 	CHECK_EQ(iRound, nret) << "Naive failed";   \
     }   \
 }   \
-BENCHMARK_F(Bit_##BIT, Shift, ArrayFixture<BIT>, 30, 50) {   \
+BENCHMARK_F(Bit_##BIT, shift, ArrayFixture<BIT>, 30, 50) {   \
     const tdc::IntVector<tdc::dynamic_t>& arr = this->instance().array();   \
     for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
     {   \
 	const uint64_t pattern = arr[iRound];    \
-	const size_t bret = broadsearch_shift(arr.data(), arr.size(), this->instance().bitlength(), pattern, iRound);   \
+	const size_t bret = broadsearch_shift(arr.data(), arr.size(), this->instance().bitlength(), pattern);   \
 	CHECK_EQ(iRound, bret) << "Shift failed";   \
     }   \
 }   \
-BENCHMARK_F(Bit_##BIT, Broad, ArrayFixture<BIT>, 30, 50) {   \
+BENCHMARK_F(Bit_##BIT, broad, ArrayFixture<BIT>, 30, 50) {   \
     const tdc::IntVector<tdc::dynamic_t>& arr = this->instance().array();   \
     for(size_t iRound = 0; iRound < arr.size(); ++iRound)    \
     {   \
