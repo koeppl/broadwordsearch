@@ -3,6 +3,7 @@
  * lowestbitmask and highestbitmask are there defined as l and h
  * The difference is that our bitmasks are not byte-aligned, but `bitwidth` aligned.
  */
+#pragma once
 
 #include <iostream>
 #include <cstdlib>
@@ -25,7 +26,7 @@ constexpr int most_significant_bit(const uint64_t& x) {
 /**
  * Use the API of tdc::IntVector to search
  */ 
-size_t api_search(const tdc::IntVector<tdc::dynamic_t>& arr, const uint64_t pattern) {
+inline size_t api_search(const tdc::IntVector<tdc::dynamic_t>& arr, const uint64_t pattern) {
 	DVLOG(3) << "API";
 	for(size_t i = 0; i < arr.size(); ++i) {
 		if(arr[i] == pattern) {
@@ -35,7 +36,7 @@ size_t api_search(const tdc::IntVector<tdc::dynamic_t>& arr, const uint64_t patt
 	return -1ULL;
 }
 
-size_t naivsearch(const uint64_t* arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
+inline size_t naivsearch(const uint64_t* arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
 	DVLOG(3) << "NAIV";
 
        uint8_t offset = 0;
@@ -233,7 +234,7 @@ constexpr uint64_t highestbitmaskarr[] = {
  * __m256i _mm256_and_si256 (__m256i a, __m256i b) for a & b
  *
  */
-size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
+inline size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
    DCHECK(pattern == 0 || most_significant_bit(pattern) <= cBitlength);
     DCHECK_LE(cBitlength,63);
     DCHECK_GT(cBitlength,0);
@@ -305,7 +306,7 @@ size_t broadsearch_shift(const uint64_t*const arr, const size_t cLength, const u
  * - to obtain the match position, we write test <- h & (x-l) & (^x)  (this is Equation 90 in Knuth's book)
  * - now t contains a 1 where the match is, otherwise 0. It is left to take the most significant bit, and map it to a position.
  */
-size_t broadsearch(const uint64_t* arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
+inline size_t broadsearch(const uint64_t* arr, const size_t cLength, const uint8_t cBitlength, const uint64_t pattern) {
    DCHECK(pattern == 0 || most_significant_bit(pattern) <= cBitlength);
     DCHECK_LE(cBitlength,63);
     DCHECK_GT(cBitlength,0);
